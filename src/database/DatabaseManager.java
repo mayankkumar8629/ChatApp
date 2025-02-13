@@ -1,10 +1,12 @@
 package database;
 
+import models.Message;
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DatabaseManager {
+public class DatabaseManager implements DatabaseOperations {
     private static final String URL = "jdbc:mysql://localhost:3306/ChatAppDB";
     private static final String USER="root";
     private static final String PASSWORD="14102003";
@@ -30,30 +32,34 @@ public class DatabaseManager {
 
 
 
-
-    public void saveMessage(String username,String message){
-        String query="INSERT INTO messages (username,message) VALUES (?,?)";
-        try(PreparedStatement statement = connection.prepareStatement(query)){
-            statement.setString(1,username);
-            statement.setString(2,message);
+    @Override
+    public void saveMessage(Message msg){
+        String query="INSERT INTO messages (username,message,timestamp) VALUES (?,?,?)";
+        try(PreparedStatement statement=connection.prepareStatement(query)){
+            statement.setString(1,msg.getUsername());
+            statement.setString(2,msg.getMessage());
+            statement.setTimestamp(3,Timestamp.valueOf(msg.getTimestamp()));
             statement.executeUpdate();
-        } catch (SQLException e) {
+        }catch (SQLException e){
             e.printStackTrace();
+            System.out.println("Error while saving message");
         }
     }
+    @Override
+    public List<Message> getLastMessages(int limit){
+        List<Message> messages =new ArrayList<>();
+        String query = "SELECT username, message, timestamp FROM messages ORDER BY timestamp DESC LIMIT ?";
 
-    public List<String> getLastMessages(int limit){
-        List<String> messages =new ArrayList<>();
-        String query="SELECT username, message FROM messages ORDER BY timestamp DESC LIMIT ?";
 
         try(PreparedStatement statement = connection.prepareStatement(query)){
             statement.setInt(1,limit);
             ResultSet resultSet=statement.executeQuery();
 
             while(resultSet.next()){
-                String sender=resultSet.getString("username");
+                String username=resultSet.getString("username");
                 String message=resultSet.getString("message");
-                messages.add(sender+": "+message);
+                LocalDateTime timestamp=resultSet.getTimestamp("timestamp").toLocalDateTime();
+                messages.add(new Message(username,message,timestamp));
             }
         }catch(SQLException e){
             e.printStackTrace();
@@ -61,6 +67,7 @@ public class DatabaseManager {
         }
         return messages;
     }
+    @Override
     public void closeConnection(){
         try {
             if (connection != null) {

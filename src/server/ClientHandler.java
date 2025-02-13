@@ -2,15 +2,19 @@ package server;
 
 import database.DatabaseManager;
 import database.UserAuth;
+import models.Message;
+import models.User;
 
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
+import java.time.LocalDateTime;
 
 public class ClientHandler implements Runnable,MessageHandler {
     private Socket clientSocket;
     private BufferedReader reader;
     private PrintWriter writer;
+    private User user;
     private String username;
     private static ConcurrentHashMap<String, ClientHandler> activeClients;
     private DatabaseManager databaseManager;
@@ -27,9 +31,9 @@ public class ClientHandler implements Runnable,MessageHandler {
             writer = new PrintWriter(clientSocket.getOutputStream(), true);
 
             authenticateUser();
-            activeClients.put(username, this);
+            activeClients.put(user.getUsername(), this);
             loadChatHistory();
-            broadcastMessage("[SERVER] " + username + " has joined the chat.");
+            broadcastMessage("[SERVER] " + user.getUsername() + " has joined the chat.");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -50,10 +54,12 @@ public class ClientHandler implements Runnable,MessageHandler {
                 String newPassword = reader.readLine();
                 if (newPassword == null) return;
 
-                if (userAuth.signUp(newUsername, newPassword)) {
-                    writer.println("[SUCCESS] Signup successful! You are now logged in.");
-                    this.username = newUsername;
-                    break;
+                if (userAuth.getUserByUsername(newUsername)==null) {
+                    if(userAuth.signUp(newUsername, newPassword)) {
+                        writer.println("[SUCCESS] Signup successful! You are now logged in.");
+                        this.user=new User (newUsername,newPassword);
+                        break;
+                    }
                 } else {
                     writer.println("[ERROR] Signup failed. Try again with a different username.");
                 }
@@ -65,9 +71,10 @@ public class ClientHandler implements Runnable,MessageHandler {
                 String loginPassword = reader.readLine();
                 if (loginPassword == null) return;
 
-                if (userAuth.login(loginUsername, loginPassword)) {
+                User existingUser = userAuth.getUserByUsername(loginUsername);
+                if (existingUser != null && userAuth.login(loginUsername, loginPassword)) {
                     writer.println("[SUCCESS] Login successful!");
-                    this.username = loginUsername;
+                    this.user = existingUser;
                     break;
                 } else {
                     writer.println("[ERROR] Invalid credentials. Try again.");
@@ -86,8 +93,8 @@ public class ClientHandler implements Runnable,MessageHandler {
                 if (message.equalsIgnoreCase("exit")) {
                     break;
                 }
-                broadcastMessage(username + ": " + message);
-                databaseManager.saveMessage(username, message); // Save message to database
+                broadcastMessage(user.getUsername() + ": " + message);
+                saveMessage(new Message(username,message,LocalDateTime.now()));// Save message to database
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -102,20 +109,23 @@ public class ClientHandler implements Runnable,MessageHandler {
         }
     }
     @Override
-    public void saveMessage(String username, String message) {
-        databaseManager.saveMessage(username, message);
+    public void saveMessage(Message msg) {
+        databaseManager.saveMessage(msg);
     }
     @Override
     public void loadChatHistory(){
-        for(String msg:databaseManager.getLastMessages(10)){
+        for(Message msg:databaseManager.getLastMessages(10)){
             writer.println(msg);
         }
     }
     @Override
     public void cleanup() {
         try {
-            activeClients.remove(username);
-            broadcastMessage("[SERVER] " + username + " has left the chat.");
+            if(user!=null){
+                activeClients.remove(user.getUsername());
+                broadcastMessage("[SERVER] " + user.getUsername() + " has left the chat.");
+            }
+            broadcastMessage("[SERVER] " + user.getUsername() + " has left the chat.");
             if (clientSocket != null) clientSocket.close();
             if (reader != null) reader.close();
             if (writer != null) writer.close();

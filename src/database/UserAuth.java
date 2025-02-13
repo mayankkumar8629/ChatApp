@@ -1,5 +1,7 @@
 package database;
 
+
+import models.User;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -8,18 +10,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 
-public class UserAuth {
+public class UserAuth implements AuthHandler {
     private Connection connection;
 
     public UserAuth(Connection connection) {
         this.connection = connection;
     }
+    @Override
     public boolean signUp(String username,String password){
-        if (userExists(username)) {
-            System.out.println("[ERROR] Username already taken.");
-            return false;
-        }
         String hashedPassword = hashPassword(password);
+
         String query = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
 
         try (PreparedStatement statement = connection.prepareStatement(query)) {
@@ -28,23 +28,24 @@ public class UserAuth {
             int rowsInserted = statement.executeUpdate();
             return rowsInserted > 0;
         } catch (SQLException e) {
-            System.out.println("[ERROR] Signup failed: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
+    @Override
     public boolean login(String username,String password){
-        String query="select password_hash from users where username= ? ";
+        String query = "SELECT password_hash FROM users WHERE username = ?";
 
-        try(PreparedStatement statement = connection.prepareStatement(query)){
-            statement.setString(1,username);
-            ResultSet resultSet=statement.executeQuery();
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, username);
+            ResultSet resultSet = statement.executeQuery();
 
-            if(resultSet.next()){
-                String storedHash=resultSet.getString("password_hash");
-                return storedHash.equals(hashPassword(password));
+            if (resultSet.next()) {
+                String storedHash = resultSet.getString("password_hash");
+                return storedHash.equals(hashPassword(password));  // ✅ Compare hashed passwords
             }
-        }catch(SQLException e){
-            System.out.println("Login Failed: "+e.getMessage());
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return false;
     }
@@ -58,20 +59,23 @@ public class UserAuth {
             }
             return hexString.toString();
         }catch (NoSuchAlgorithmException e){
-            throw new RuntimeException("Password Hashng failed.",e);
+            throw new RuntimeException("Password Hashing failed.",e);
         }
     }
-    private boolean userExists(String username) {
-        String query = "SELECT username FROM users WHERE username = ?";
+    public User getUserByUsername(String username) {
+        String query = "SELECT username, password_hash FROM users WHERE username = ?";
+
 
         try (PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setString(1, username);
             ResultSet resultSet = statement.executeQuery();
-            return resultSet.next();
+            if(resultSet.next()){
+                return new User(resultSet.getString("username"), resultSet.getString("password_hash"));
+            }
         } catch (SQLException e) {
             System.out.println("[ERROR] Checking username failed: " + e.getMessage());
         }
-        return false;
+        return null;
     }
 
 }
