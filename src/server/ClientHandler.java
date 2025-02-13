@@ -7,7 +7,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ClientHandler implements Runnable {
+public class ClientHandler implements Runnable,MessageHandler {
     private Socket clientSocket;
     private BufferedReader reader;
     private PrintWriter writer;
@@ -28,6 +28,7 @@ public class ClientHandler implements Runnable {
 
             authenticateUser();
             activeClients.put(username, this);
+            loadChatHistory();
             broadcastMessage("[SERVER] " + username + " has joined the chat.");
         } catch (IOException e) {
             e.printStackTrace();
@@ -94,14 +95,24 @@ public class ClientHandler implements Runnable {
             cleanup();
         }
     }
-
-    private void broadcastMessage(String message) {
+    @Override
+    public void broadcastMessage(String message) {
         for (ClientHandler client : activeClients.values()) {
             client.writer.println(message);
         }
     }
-
-    private void cleanup() {
+    @Override
+    public void saveMessage(String username, String message) {
+        databaseManager.saveMessage(username, message);
+    }
+    @Override
+    public void loadChatHistory(){
+        for(String msg:databaseManager.getLastMessages(10)){
+            writer.println(msg);
+        }
+    }
+    @Override
+    public void cleanup() {
         try {
             activeClients.remove(username);
             broadcastMessage("[SERVER] " + username + " has left the chat.");

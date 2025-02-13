@@ -1,9 +1,8 @@
 package database;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseManager {
     private static final String URL = "jdbc:mysql://localhost:3306/ChatAppDB";
@@ -41,6 +40,26 @@ public class DatabaseManager {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public List<String> getLastMessages(int limit){
+        List<String> messages =new ArrayList<>();
+        String query="SELECT username, message FROM messages ORDER BY timestamp DESC LIMIT ?";
+
+        try(PreparedStatement statement = connection.prepareStatement(query)){
+            statement.setInt(1,limit);
+            ResultSet resultSet=statement.executeQuery();
+
+            while(resultSet.next()){
+                String sender=resultSet.getString("username");
+                String message=resultSet.getString("message");
+                messages.add(sender+": "+message);
+            }
+        }catch(SQLException e){
+            e.printStackTrace();
+            System.out.println("Failed to retrive last messages");
+        }
+        return messages;
     }
     public void closeConnection(){
         try {

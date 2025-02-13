@@ -33,7 +33,7 @@ public class UserAuth {
         }
     }
     public boolean login(String username,String password){
-        String query="select password_hash from users where username=? ";
+        String query="select password_hash from users where username= ? ";
 
         try(PreparedStatement statement = connection.prepareStatement(query)){
             statement.setString(1,username);
@@ -41,7 +41,7 @@ public class UserAuth {
 
             if(resultSet.next()){
                 String storedHash=resultSet.getString("password_hash");
-                return storedHash.equals(password);
+                return storedHash.equals(hashPassword(password));
             }
         }catch(SQLException e){
             System.out.println("Login Failed: "+e.getMessage());
