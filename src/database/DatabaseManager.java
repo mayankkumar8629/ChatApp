@@ -9,7 +9,7 @@ import java.util.List;
 public class DatabaseManager implements DatabaseOperations {
     private static final String URL = "jdbc:mysql://localhost:3306/ChatAppDB";
     private static final String USER="root";
-    private static final String PASSWORD="14102003";
+    private static final String PASSWORD="yourpassword";
 
     private Connection connection;
 
@@ -63,7 +63,7 @@ public class DatabaseManager implements DatabaseOperations {
             }
         }catch(SQLException e){
             e.printStackTrace();
-            System.out.println("Failed to retrive last messages");
+            System.out.println("Failed to retrieve last messages");
         }
         return messages;
     }

@@ -94,7 +94,7 @@ public class ClientHandler implements Runnable,MessageHandler {
                     break;
                 }
                 broadcastMessage(user.getUsername() + ": " + message);
-                saveMessage(new Message(username,message,LocalDateTime.now()));// Save message to database
+                saveMessage(new Message(user.getUsername(),message,LocalDateTime.now()));// Save message to database
             }
         } catch (IOException e) {
             e.printStackTrace();
